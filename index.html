@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GardStore Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body { font-family: 'IBM Plex Sans Arabic', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .transition-all-300 { transition: all 0.3s ease-in-out; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .fade-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .status-badge { padding: 0.25rem 0.75rem; border-radius: 8px; font-size: 0.75rem; font-weight: 600; display: inline-flex; items-center: center; gap: 4px; }
+        .loading-overlay { position: fixed; inset: 0; background: white; z-index: 100; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        input[type="number"] { direction: ltr; text-align: right; }
+        .mobile-card { box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex overflow-hidden">
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-overlay">
+        <div class="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+        <p id="loading-text" class="text-slate-600 font-medium text-lg">پەیوەستبوون...</p>
+        <p id="import-status" class="text-sm text-slate-400 mt-2 hidden">خەریکی نوێکردنەوەی داتاکانین...</p>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="w-72 bg-white border-l border-slate-200 flex-shrink-0 hidden md:flex flex-col shadow-lg z-20">
+        <div class="h-20 flex items-center px-6 border-b border-slate-100">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-indigo-200 shadow-lg">G</div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-800 leading-tight">GardStore</h1>
+                    <p class="text-xs text-slate-400">Management v10</p>
+                </div>
+            </div>
+        </div>
+        
+        <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+            <button onclick="router('dashboard')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-all-300 group active-nav" id="btn-dashboard">
+                <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                <span class="font-medium">داشبۆرد</span>
+            </button>
+
+            <button onclick="router('sales')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-all-300 group" id="btn-sales">
+                <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+                <span class="font-medium">فرۆشتن</span>
+            </button>
+
+            <button onclick="router('stock')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-all-300 group" id="btn-stock">
+                <i data-lucide="package-check" class="w-5 h-5"></i>
+                <span class="font-medium">کۆگا (ئامادەکراو)</span>
+            </button>
+
+            <button onclick="router('finance')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-all-300 group" id="btn-finance">
+                <i data-lucide="wallet" class="w-5 h-5"></i>
+                <span class="font-medium">ژمێریاری</span>
+            </button>
+
+            <button onclick="router('losses')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-all-300 group" id="btn-losses">
+                <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                <span class="font-medium">زیانەکان</span>
+            </button>
+            
+            <button onclick="router('returns')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-all-300 group" id="btn-returns">
+                <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                <span class="font-medium">گەڕاوەکان</span>
+            </button>
+        </nav>
+        
+        <div class="p-6 border-t border-slate-100 bg-slate-50">
+            <button onclick="window.hardResetAndImport()" class="w-full bg-white text-rose-500 py-2.5 rounded-lg text-xs font-bold hover:bg-rose-50 border border-rose-100 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                Reset Database
+            </button>
+            <div class="mt-4 flex items-center justify-center gap-2 text-xs text-emerald-600 font-medium">
+                <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                پەیوەستە (Online)
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col overflow-hidden relative bg-[#f8fafc]">
+        <!-- Mobile Header -->
+        <header class="md:hidden bg-white border-b border-slate-200 p-4 flex justify-between items-center z-10 sticky top-0 shadow-sm">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">G</div>
+                <h1 class="font-bold text-lg text-slate-800">GardStore</h1>
+            </div>
+            <button onclick="toggleMobileMenu()" class="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200">
+                <i data-lucide="menu" class="w-6 h-6"></i>
+            </button>
+        </header>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="md:hidden hidden absolute top-16 right-0 left-0 bg-white border-b border-slate-200 shadow-xl z-50 animate-in slide-in-from-top duration-200">
+             <nav class="flex flex-col p-4 space-y-2">
+                <button onclick="router('dashboard'); toggleMobileMenu()" class="text-right px-4 py-3 hover:bg-slate-50 rounded-lg flex items-center gap-3"><i data-lucide="layout-dashboard" class="w-5 h-5 text-slate-400"></i> داشبۆرد</button>
+                <button onclick="router('sales'); toggleMobileMenu()" class="text-right px-4 py-3 hover:bg-slate-50 rounded-lg flex items-center gap-3"><i data-lucide="shopping-cart" class="w-5 h-5 text-slate-400"></i> فرۆشتن</button>
+                <button onclick="router('stock'); toggleMobileMenu()" class="text-right px-4 py-3 hover:bg-slate-50 rounded-lg flex items-center gap-3"><i data-lucide="package-check" class="w-5 h-5 text-slate-400"></i> کۆگا</button>
+                <button onclick="router('finance'); toggleMobileMenu()" class="text-right px-4 py-3 hover:bg-slate-50 rounded-lg flex items-center gap-3"><i data-lucide="wallet" class="w-5 h-5 text-slate-400"></i> ژمێریاری</button>
+                <button onclick="router('losses'); toggleMobileMenu()" class="text-right px-4 py-3 hover:bg-slate-50 rounded-lg flex items-center gap-3"><i data-lucide="alert-triangle" class="w-5 h-5 text-slate-400"></i> زیانەکان</button>
+                <button onclick="router('returns'); toggleMobileMenu()" class="text-right px-4 py-3 hover:bg-slate-50 rounded-lg flex items-center gap-3"><i data-lucide="rotate-ccw" class="w-5 h-5 text-slate-400"></i> گەڕاوەکان</button>
+             </nav>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 md:px-10 relative scroll-smooth" id="main-container"></div>
+    </main>
+
+    <!-- Modal Template -->
+    <div id="modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden fade-in transform transition-all">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 class="font-bold text-lg text-slate-800" id="modal-title">ناونیشان</h3>
+                <button onclick="closeModal()" class="w-8 h-8 rounded-full flex items-center justify-center bg-white border border-slate-200 text-slate-500 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 transition-colors">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="p-6 max-h-[80vh] overflow-y-auto" id="modal-content"></div>
+        </div>
+    </div>
+
+    <!-- View Order Details Modal -->
+    <div id="view-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden fade-in relative">
+            <div class="absolute top-0 right-0 w-full h-2 bg-indigo-600"></div>
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-800">وردەکاری داواکاری</h3>
+                        <p class="text-sm text-slate-500 mt-1">ID: <span id="vm-id" class="font-mono bg-slate-100 px-1 rounded"></span></p>
+                    </div>
+                    <button onclick="closeViewModal()" class="text-slate-400 hover:text-slate-600">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <label class="text-xs text-slate-400 font-semibold block mb-1">ناوى کڕیار</label>
+                        <div class="flex justify-between items-center"><span id="vm-customer" class="font-medium text-slate-800 text-lg"></span><button onclick="copyText('vm-customer')" class="copy-btn text-indigo-500 hover:bg-indigo-50 p-2 rounded-lg transition-colors"><i data-lucide="copy" class="w-4 h-4"></i></button></div>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <label class="text-xs text-slate-400 font-semibold block mb-1">ژمارەی مۆبایل</label>
+                        <div class="flex justify-between items-center"><span id="vm-phone" class="font-medium text-slate-800 font-mono text-lg" dir="ltr"></span><button onclick="copyText('vm-phone')" class="copy-btn text-indigo-500 hover:bg-indigo-50 p-2 rounded-lg transition-colors"><i data-lucide="copy" class="w-4 h-4"></i></button></div>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <label class="text-xs text-slate-400 font-semibold block mb-1">ناونیشان</label>
+                        <div class="flex justify-between items-center gap-2"><span id="vm-address" class="font-medium text-slate-800 leading-snug"></span><button onclick="copyText('vm-address')" class="copy-btn text-indigo-500 hover:bg-indigo-50 p-2 rounded-lg transition-colors flex-shrink-0"><i data-lucide="copy" class="w-4 h-4"></i></button></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mt-4">
+                        <div class="p-3 border rounded-xl text-center"><label class="text-xs text-slate-400 block">نرخ</label><span id="vm-price" class="font-bold text-slate-700"></span></div>
+                        <div class="p-3 border rounded-xl text-center"><label class="text-xs text-slate-400 block">کۆی گشتی</label><span id="vm-total" class="font-bold text-indigo-600 text-lg"></span></div>
+                    </div>
+                </div>
+                <div class="mt-6"><button onclick="closeViewModal()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-900 transition-colors">داخستن</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBcuXyiXasiD85821_WwjQJexYGYTVJF8w",
+            authDomain: "gardstoree.firebaseapp.com",
+            projectId: "gardstoree",
+            storageBucket: "gardstoree.firebasestorage.app",
+            messagingSenderId: "667258980017",
+            appId: "1:667258980017:web:b4cc3f06d7334c00f18490",
+            measurementId: "G-1P8VFEBCE5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        window.state = {
+            orders: [], expenses: [], losses: [], debts: [], returns: [], preparedItems: [],
+            user: null, currentView: 'dashboard', salesSearch: ''
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                window.state.user = user;
+                setupListeners();
+                document.getElementById('loading-screen').style.display = 'none';
+                router('dashboard');
+            } else {
+                signInAnonymously(auth).catch((error) => console.error("Auth Error:", error));
+            }
+        });
+
+        const setupListeners = () => {
+            const collections = ['orders', 'expenses', 'losses', 'debts', 'returns', 'prepared_items'];
+            collections.forEach(colName => {
+                const targetKey = colName === 'prepared_items' ? 'preparedItems' : colName;
+                const q = query(collection(db, colName)); 
+                onSnapshot(q, (snapshot) => {
+                    window.state[targetKey] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    window.state[targetKey].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+                    refreshCurrentView();
+                });
+            });
+        };
+
+        // UI Helpers
+        window.formatMoney = (amount) => new Intl.NumberFormat('en-US').format(amount) + ' IQD';
+        window.formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('en-GB') : '-';
+        window.getShortId = (id) => '#' + id.substring(0, 6).toUpperCase();
+        
+        window.closeModal = () => { document.getElementById('modal').classList.add('hidden'); document.getElementById('modal').classList.remove('flex'); };
+        window.openModal = (title, html) => {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-content').innerHTML = html;
+            const m = document.getElementById('modal'); m.classList.remove('hidden'); m.classList.add('flex');
+            lucide.createIcons();
+        };
+
+        window.toggleNote = (selectId, divId) => {
+            const val = document.getElementById(selectId).value;
+            const div = document.getElementById(divId);
+            if (val === 'Other') div.classList.remove('hidden'); else div.classList.add('hidden');
+        };
+
+        window.handleSalesSearch = (val) => { window.state.salesSearch = val.toLowerCase(); refreshCurrentView(); };
+
+        window.viewOrder = (id) => {
+            const order = window.state.orders.find(o => o.id === id);
+            if(!order) return;
+            document.getElementById('vm-id').innerText = window.getShortId(order.id);
+            document.getElementById('vm-customer').innerText = order.customer;
+            document.getElementById('vm-phone').innerText = order.phone || 'بێ ژمارە';
+            document.getElementById('vm-address').innerText = order.address;
+            document.getElementById('vm-price').innerText = window.formatMoney(order.price) + ' x ' + order.qty;
+            document.getElementById('vm-total').innerText = window.formatMoney(order.price * order.qty);
+            const vm = document.getElementById('view-modal'); vm.classList.remove('hidden'); vm.classList.add('flex');
+        };
+        window.closeViewModal = () => { document.getElementById('view-modal').classList.add('hidden'); document.getElementById('view-modal').classList.remove('flex'); };
+        window.copyText = (elementId) => {
+            const text = document.getElementById(elementId).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.querySelector(`button[onclick="copyText('${elementId}')"]`);
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green-500"></i>`;
+                lucide.createIcons();
+                setTimeout(() => { btn.innerHTML = originalHTML; lucide.createIcons(); }, 1000);
+            });
+        };
+
+        window.router = (view) => {
+            window.state.currentView = view;
+            const container = document.getElementById('main-container');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('bg-indigo-50', 'text-indigo-600', 'shadow-sm'));
+            const activeBtn = document.getElementById(`btn-${view}`);
+            if(activeBtn) activeBtn.classList.add('bg-indigo-50', 'text-indigo-600', 'shadow-sm');
+            container.innerHTML = '';
+            container.classList.add('fade-in');
+            setTimeout(() => container.classList.remove('fade-in'), 500);
+            switch(view) {
+                case 'dashboard': renderDashboard(container); break;
+                case 'sales': renderSales(container); break;
+                case 'stock': renderStock(container); break;
+                case 'finance': renderFinance(container); break;
+                case 'losses': renderLosses(container); break;
+                case 'returns': renderReturns(container); break;
+            }
+            lucide.createIcons();
+        };
+
+        window.refreshCurrentView = () => { const container = document.getElementById('main-container'); if (container) router(window.state.currentView); };
+
+        // *** RENDER FUNCTIONS ***
+        function renderDashboard(container) {
+            const delivered = window.state.orders.filter(o => o.status === 'Delivered');
+            const totalSales = delivered.reduce((s, o) => s + (o.price * o.qty), 0);
+            const totalExp = window.state.expenses.reduce((s, e) => s + parseFloat(e.amount), 0);
+            const totalLoss = window.state.losses.reduce((s, l) => s + parseFloat(l.totalLoss), 0);
+            const profit = totalSales - totalExp - totalLoss;
+            const toPrepareCount = window.state.orders.filter(o => o.status === 'ToPrepare').length;
+            const readyCount = window.state.orders.filter(o => o.status === 'Ready').length;
+            const totalPreparedStock = window.state.preparedItems.reduce((s, item) => s + item.qty, 0);
+
+            container.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-r-4 border-yellow-400 hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-center">
+                            <div><p class="text-slate-500 text-sm font-medium mb-1">دەبێت ئامادە بکرێت</p><p class="text-3xl font-bold text-slate-800">${toPrepareCount}</p></div>
+                            <div class="bg-yellow-50 p-3 rounded-full text-yellow-500"><i data-lucide="loader" class="w-6 h-6"></i></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-r-4 border-sky-500 hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-center">
+                            <div><p class="text-slate-500 text-sm font-medium mb-1">ئامادەیە (Sales)</p><p class="text-3xl font-bold text-slate-800">${readyCount}</p></div>
+                            <div class="bg-sky-50 p-3 rounded-full text-sky-500"><i data-lucide="check-square" class="w-6 h-6"></i></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-r-4 border-purple-500 hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-center">
+                            <div><p class="text-slate-500 text-sm font-medium mb-1">کۆی ئامادەکراو (Stock)</p><p class="text-3xl font-bold text-slate-800">${totalPreparedStock}</p></div>
+                            <div class="bg-purple-50 p-3 rounded-full text-purple-500"><i data-lucide="package" class="w-6 h-6"></i></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-start mb-4"><div class="p-2 bg-emerald-50 rounded-lg text-emerald-600"><i data-lucide="trending-up" class="w-6 h-6"></i></div></div>
+                        <p class="text-slate-500 text-sm">فرۆشتن (گەیشتوو)</p><p class="text-2xl font-bold mt-1 text-slate-800">${formatMoney(totalSales)}</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                         <div class="flex justify-between items-start mb-4"><div class="p-2 bg-rose-50 rounded-lg text-rose-600"><i data-lucide="trending-down" class="w-6 h-6"></i></div></div>
+                        <p class="text-slate-500 text-sm">خەرجییەکان</p><p class="text-2xl font-bold mt-1 text-slate-800">${formatMoney(totalExp)}</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                         <div class="flex justify-between items-start mb-4"><div class="p-2 bg-orange-50 rounded-lg text-orange-600"><i data-lucide="alert-circle" class="w-6 h-6"></i></div></div>
+                        <p class="text-slate-500 text-sm">زیانەکان</p><p class="text-2xl font-bold mt-1 text-slate-800">${formatMoney(totalLoss)}</p>
+                    </div>
+                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                         <div class="flex justify-between items-start mb-4"><div class="p-2 ${profit >= 0 ? 'bg-indigo-50 text-indigo-600' : 'bg-red-50 text-red-600'} rounded-lg"><i data-lucide="dollar-sign" class="w-6 h-6"></i></div></div>
+                        <p class="text-slate-500 text-sm">قازانجی سافی</p><p class="text-2xl font-bold mt-1 ${profit >= 0 ? 'text-indigo-600' : 'text-red-600'}">${formatMoney(profit)}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSales(container) {
+            const statusLabels = { ToPrepare: 'ئامادە دەکرێت', Ready: 'ئامادەیە', Shipped: 'بەڕێ کراوە', Delivered: 'گەیشتووە' };
+            const statusColors = { ToPrepare: 'bg-slate-100 text-slate-700 border-slate-200', Ready: 'bg-sky-50 text-sky-700 border-sky-100', Shipped: 'bg-indigo-50 text-indigo-700 border-indigo-100', Delivered: 'bg-emerald-50 text-emerald-700 border-emerald-100' };
+            const searchTerm = window.state.salesSearch;
+            const filteredOrders = window.state.orders.filter(o => o.customer.toLowerCase().includes(searchTerm) || (o.phone && o.phone.includes(searchTerm)) || o.id.toLowerCase().includes(searchTerm));
+
+            container.innerHTML = `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div><h2 class="text-2xl font-bold text-slate-800">داواکارییەکان</h2><p class="text-slate-500 text-sm">لیستی هەموو فرۆشتنەکان</p></div>
+                    <div class="flex gap-3 w-full md:w-auto">
+                        <div class="relative w-full md:w-64"><i data-lucide="search" class="absolute right-3 top-3 w-4 h-4 text-slate-400"></i><input type="text" placeholder="گەڕان..." value="${window.state.salesSearch}" onkeyup="handleSalesSearch(this.value)" class="w-full pr-10 pl-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm"></div>
+                        <button onclick="openAddOrderModal()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 whitespace-nowrap"><i data-lucide="plus-circle" class="w-5 h-5"></i> <span class="hidden md:inline">زیادکردن</span></button>
+                    </div>
+                </div>
+                <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-100">
+                            <thead class="bg-slate-50/80"><tr><th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase">ID / کڕیار</th><th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase">ناونیشان</th><th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase">نرخ</th><th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase">دۆخ</th><th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase">کردار</th></tr></thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${filteredOrders.map(o => `<tr class="hover:bg-slate-50/80 transition-colors group cursor-pointer" onclick="viewOrder('${o.id}')"><td class="px-6 py-4"><div class="flex items-center gap-3"><div class="bg-indigo-50 text-indigo-600 font-mono text-xs px-2 py-1 rounded-md border border-indigo-100">${getShortId(o.id)}</div><div><div class="font-bold text-slate-800 text-sm">${o.customer}</div><div class="text-xs text-slate-400 font-mono mt-0.5">${o.phone || ''}</div></div></div></td><td class="px-6 py-4"><div class="text-sm text-slate-600 max-w-[150px] truncate" title="${o.address}">${o.address}</div></td><td class="px-6 py-4 text-sm"><div class="font-bold text-slate-700">${formatMoney(o.price * o.qty)}</div><div class="text-xs text-slate-400">${formatMoney(o.price)} x ${o.qty}</div></td><td class="px-6 py-4"><span class="status-badge border ${statusColors[o.status]}">${statusLabels[o.status]}</span></td><td class="px-6 py-4" onclick="event.stopPropagation()"><div class="flex items-center gap-2"><button onclick="viewOrder('${o.id}')" class="p-2 rounded-lg text-indigo-500 hover:bg-indigo-50 transition-colors"><i data-lucide="eye" class="w-4 h-4"></i></button><select onchange="updateOrderStatus('${o.id}', this.value)" class="text-xs border border-slate-200 rounded-lg py-1.5 px-2 bg-white outline-none cursor-pointer hover:border-indigo-300 transition-colors"><option value="ToPrepare" ${o.status==='ToPrepare'?'selected':''}>ئامادە دەکرێت</option><option value="Ready" ${o.status==='Ready'?'selected':''}>ئامادەیە</option><option value="Shipped" ${o.status==='Shipped'?'selected':''}>بەڕێ کراوە</option><option value="Delivered" ${o.status==='Delivered'?'selected':''}>گەیشتووە</option></select><button onclick="deleteItem('orders', '${o.id}')" class="p-2 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></td></tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="md:hidden space-y-4">
+                    ${filteredOrders.map(o => `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mobile-card relative" onclick="viewOrder('${o.id}')"><div class="flex justify-between items-start mb-3"><div class="flex items-center gap-3"><div class="bg-indigo-50 text-indigo-600 font-mono text-xs px-2 py-1 rounded-md border border-indigo-100">${getShortId(o.id)}</div><div><div class="font-bold text-slate-800 text-sm">${o.customer}</div><div class="text-xs text-slate-400 font-mono">${formatDate(o.date)}</div></div></div><span class="status-badge border ${statusColors[o.status]}">${statusLabels[o.status]}</span></div><div class="flex justify-between items-end"><div><div class="text-sm text-slate-600 mb-1">${o.address}</div><div class="font-bold text-indigo-600">${formatMoney(o.price * o.qty)}</div></div><div class="flex gap-2" onclick="event.stopPropagation()"><select onchange="updateOrderStatus('${o.id}', this.value)" class="text-xs border border-slate-200 rounded-lg py-2 px-2 bg-white outline-none cursor-pointer"><option value="ToPrepare" ${o.status==='ToPrepare'?'selected':''}>ئامادە دەکرێت</option><option value="Ready" ${o.status==='Ready'?'selected':''}>ئامادەیە</option><option value="Shipped" ${o.status==='Shipped'?'selected':''}>بەڕێ کراوە</option><option value="Delivered" ${o.status==='Delivered'?'selected':''}>گەیشتووە</option></select><button onclick="deleteItem('orders', '${o.id}')" class="p-2 rounded-lg text-slate-400 hover:text-rose-500 bg-slate-50"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div></div>`).join('')}
+                    ${filteredOrders.length === 0 ? '<div class="text-center text-slate-400 py-10">هیچ داواکارییەک نەدۆزرایەوە</div>' : ''}
+                </div>
+            `;
+        }
+
+        // *** RENDER STOCK (New Function) ***
+        function renderStock(container) {
+            const totalPrepared = window.state.preparedItems.reduce((s, i) => s + i.qty, 0);
+            const miraCount = window.state.preparedItems.filter(i => i.staff === 'Mira').reduce((s, i) => s + i.qty, 0);
+            const diakoCount = window.state.preparedItems.filter(i => i.staff === 'Diako').reduce((s, i) => s + i.qty, 0);
+
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <div><h2 class="text-2xl font-bold text-slate-800">کاڵای ئامادەکراو</h2><p class="text-slate-500 text-sm">بەڕێوەبردنی کۆگا و ئامادەکاری</p></div>
+                    <button onclick="openAddStockModal()" class="bg-purple-600 text-white px-5 py-2.5 rounded-xl shadow-lg hover:bg-purple-700 transition-all flex items-center gap-2"><i data-lucide="package-plus" class="w-5 h-5"></i> زیادکردن</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-purple-100"><p class="text-slate-500 text-sm">کۆی گشتی ئامادەکراو</p><p class="text-3xl font-bold text-purple-600 mt-1">${totalPrepared}</p></div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><p class="text-slate-500 text-sm">ئامادەکراو (میرە)</p><p class="text-2xl font-bold text-slate-800 mt-1">${miraCount}</p></div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100"><p class="text-slate-500 text-sm">ئامادەکراو (دیاکۆ)</p><p class="text-2xl font-bold text-slate-800 mt-1">${diakoCount}</p></div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-100">
+                            <thead class="bg-slate-50"><tr><th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase">ناوی ئامادەکار</th><th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase">ژمارەی کاڵا</th><th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase">بەروار</th><th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase">کردار</th></tr></thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${window.state.preparedItems.map(item => `
+                                    <tr class="hover:bg-slate-50 transition-colors">
+                                        <td class="px-6 py-4 font-bold text-slate-800">${item.staff}</td>
+                                        <td class="px-6 py-4 font-mono text-purple-600 font-bold text-lg">${item.qty}</td>
+                                        <td class="px-6 py-4 text-slate-500 text-sm">${formatDate(item.date)}</td>
+                                        <td class="px-6 py-4"><button onclick="deleteItem('prepared_items', '${item.id}')" class="text-slate-400 hover:text-rose-600 p-2 hover:bg-rose-50 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                                    </tr>
+                                `).join('') || '<tr><td colspan="4" class="text-center py-8 text-slate-400">هیچ کاڵایەک تۆمار نەکراوە</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFinance(container) {
+            container.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 h-auto lg:h-[calc(100vh-140px)]">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[400px] lg:h-full overflow-hidden">
+                        <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                            <h3 class="font-bold text-rose-600 flex items-center gap-2"><i data-lucide="trending-down" class="w-5 h-5"></i> خەرجییەکان</h3>
+                            <button onclick="openAddExpenseModal()" class="text-xs bg-rose-50 text-rose-600 px-3 py-1.5 rounded-lg border border-rose-100 hover:bg-rose-100 font-bold transition-colors">+ زیادکردن</button>
+                        </div>
+                        <ul class="flex-1 overflow-y-auto p-4 space-y-2">
+                            ${window.state.expenses.map(e => `
+                                <li class="flex justify-between items-center p-3 hover:bg-slate-50 rounded-xl border border-transparent hover:border-slate-100 transition-all group">
+                                    <div><div class="font-medium text-slate-800">${e.category}</div>${e.note ? `<div class="text-xs text-slate-500 italic mt-0.5">"${e.note}"</div>` : ''}<div class="text-[10px] text-slate-400 mt-1">${formatDate(e.date)}</div></div>
+                                    <div class="flex items-center gap-3"><span class="font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-md text-sm">${formatMoney(e.amount)}</span><button onclick="deleteItem('expenses', '${e.id}')" class="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="x-circle" class="w-4 h-4"></i></button></div>
+                                </li>
+                            `).join('') || '<div class="flex flex-col items-center justify-center h-full text-slate-300"><i data-lucide="inbox" class="w-10 h-10 mb-2"></i><p>هیچ خەرجییەک نییە</p></div>'}
+                        </ul>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[400px] lg:h-full overflow-hidden">
+                        <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                            <h3 class="font-bold text-amber-600 flex items-center gap-2"><i data-lucide="book-open" class="w-5 h-5"></i> دەفتەری قەرز</h3>
+                            <button onclick="openAddDebtModal()" class="text-xs bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg border border-amber-100 hover:bg-amber-100 font-bold transition-colors">+ زیادکردن</button>
+                        </div>
+                        <div class="flex-1 overflow-y-auto p-0">
+                            <table class="w-full">
+                                <thead class="text-xs text-slate-500 bg-slate-50 sticky top-0"><tr><th class="px-4 py-3 text-right">خاوەن قەرز</th><th class="px-4 py-3 text-right">بڕ</th><th class="px-4 py-3 text-left">کردار</th></tr></thead>
+                                <tbody class="text-sm divide-y divide-slate-50">
+                                    ${window.state.debts.map(d => `
+                                        <tr class="hover:bg-slate-50 transition-colors group">
+                                            <td class="px-4 py-3 ${d.isPaid ? 'line-through text-slate-400' : 'text-slate-800 font-medium'}">${d.name}${!d.isPaid ? `<div class="text-[10px] text-indigo-500 bg-indigo-50 inline-block px-1.5 py-0.5 rounded mt-1 border border-indigo-100">پشکی هەر یەکێک: ${formatMoney(Math.round(d.amount/3))}</div>` : ''}</td>
+                                            <td class="px-4 py-3 font-bold ${d.isPaid ? 'text-slate-400' : 'text-slate-700'}">${formatMoney(d.amount)}</td>
+                                            <td class="px-4 py-3 text-left"><div class="flex items-center justify-end gap-2">${!d.isPaid ? `<button onclick="markDebtPaid('${d.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-emerald-700 transition-colors shadow-sm flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> دانەوە</button>` : `<span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg text-xs font-bold border border-emerald-100 flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> دراوە</span>`}<button onclick="deleteItem('debts', '${d.id}')" class="text-slate-300 hover:text-rose-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></td>
+                                        </tr>
+                                    `).join('') || '<tr><td colspan="3" class="text-center py-10 text-slate-300">هیچ قەرزێک نییە</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderLosses(container) {
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                     <div><h2 class="text-2xl font-bold text-rose-600">زیانەکان</h2><p class="text-slate-500 text-sm">لیستی زیان و تێچووە زیادەکان</p></div>
+                    <button onclick="openAddLossModal()" class="bg-rose-600 text-white px-5 py-2.5 rounded-xl shadow-lg hover:bg-rose-700 transition-all flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> تۆمارکردن</button>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table class="min-w-full divide-y divide-slate-100">
+                        <thead class="bg-rose-50/50"><tr><th class="px-6 py-4 text-right text-xs font-bold text-rose-800 uppercase">هۆکار</th><th class="px-6 py-4 text-right text-xs font-bold text-rose-800 uppercase">تێچوو/زیان</th><th class="px-6 py-4 text-right text-xs font-bold text-rose-800 uppercase">بەروار</th><th class="px-6 py-4 text-right text-xs font-bold text-rose-800 uppercase">کردار</th></tr></thead>
+                        <tbody class="divide-y divide-slate-100">
+                            ${window.state.losses.map(l => `
+                                <tr class="hover:bg-rose-50/30 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-slate-800">${l.reason} <span class="text-slate-400 text-xs block">${l.qty ? `(${l.qty} دانە)` : ''}</span></td>
+                                    <td class="px-6 py-4 font-bold text-rose-600">${formatMoney(l.totalLoss)}</td>
+                                    <td class="px-6 py-4 text-slate-500 text-sm font-mono">${formatDate(l.date)}</td>
+                                    <td class="px-6 py-4"><button onclick="deleteItem('losses', '${l.id}')" class="text-slate-400 hover:text-rose-600 p-2 hover:bg-rose-50 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderReturns(container) {
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-slate-800">کاڵای گەڕاوە</h2>
+                    <button onclick="openAddReturnModal()" class="bg-slate-800 text-white px-5 py-2.5 rounded-xl shadow-lg hover:bg-slate-900 transition-all flex items-center gap-2"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> گەڕاندنەوە</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    ${window.state.returns.map(r => {
+                        const order = window.state.orders.find(o => o.id === r.orderId);
+                        const customerName = order ? order.customer : 'نەناسراو';
+                        return `
+                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 hover:border-slate-300 transition-all group relative">
+                            <button onclick="deleteItem('returns', '${r.id}')" class="absolute top-3 left-3 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="x" class="w-4 h-4"></i></button>
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="bg-slate-100 p-2 rounded-lg text-slate-500"><i data-lucide="package" class="w-5 h-5"></i></div>
+                                <div>
+                                    <div class="font-bold text-slate-800">${customerName}</div>
+                                    <div class="font-mono text-slate-400 bg-slate-50 px-1 rounded text-xs inline-block">${getShortId(r.orderId)}</div>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-sm"><span class="text-slate-500">هۆکار:</span><span class="font-medium ${r.reason === 'Broken' ? 'text-rose-600' : 'text-slate-700'}">${r.reason === 'Broken' ? 'شکاوە' : r.reason === 'DidNotLike' ? 'بەدڵی نەبوو' : 'هیتر'}</span></div>
+                                ${r.note ? `<div class="bg-yellow-50 p-2 rounded-lg text-xs text-yellow-800 italic border border-yellow-100">"${r.note}"</div>` : ''}
+                                <div class="pt-2 border-t border-slate-50 flex justify-between items-center"><span class="text-xs text-slate-400">زیان (مەسرەف)</span><span class="font-bold text-rose-600">${formatMoney(r.lossAmount)}</span></div>
+                            </div>
+                        </div>
+                    `}).join('') || '<div class="col-span-full py-12 text-center text-slate-400 bg-white rounded-2xl border border-dashed border-slate-300">هیچ کاڵایەک نەگەڕاوەتەوە</div>'}
+                </div>
+            `;
+        }
+
+        // --- Modals & Actions ---
+        window.openAddOrderModal = () => {
+            openModal('زیادکردنی داواکاری', `<form id="order-form" class="space-y-4">
+                <div class="space-y-3">
+                    <input type="text" name="customer" placeholder="ناوی کڕیار" required class="w-full border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                    <input type="text" name="address" placeholder="ناونیشان" required class="w-full border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                    <input type="text" name="phone" placeholder="ژمارەی مۆبایل" class="w-full border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                    <div class="grid grid-cols-2 gap-4">
+                        <input type="number" name="price" placeholder="نرخ" required class="w-full border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                        <input type="number" name="qty" value="1" placeholder="دانە" required class="w-full border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                    </div>
+                    <select name="status" class="w-full border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-white">
+                        <option value="ToPrepare">ئامادە دەکرێت</option>
+                        <option value="Ready">ئامادەیە</option>
+                        <option value="Shipped">بەڕێ کراوە</option>
+                        <option value="Delivered">گەیشتووە</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 mt-2">تۆمارکردن</button>
+            </form>`);
+            document.getElementById('order-form').onsubmit = async (e) => { e.preventDefault(); await addDoc(collection(db, 'orders'), { customer: e.target.customer.value, address: e.target.address.value, phone: e.target.phone.value, price: parseFloat(e.target.price.value), qty: parseInt(e.target.qty.value), status: e.target.status.value, date: new Date().toISOString() }); closeModal(); };
+        };
+
+        // NEW: Add Prepared Stock Modal
+        window.openAddStockModal = () => {
+            openModal('زیادکردنی کاڵای ئامادەکراو', `
+                <form id="stock-form" class="space-y-4">
+                    <div><label class="text-xs text-slate-400 font-bold uppercase mb-1 block">ناوی ئامادەکار</label><select name="staff" class="w-full border border-slate-200 rounded-xl p-3 bg-white"><option value="Mira">میرە</option><option value="Diako">دیاکۆ</option></select></div>
+                    <div><label class="text-xs text-slate-400 font-bold uppercase mb-1 block">ژمارەی کاڵا</label><input type="number" name="qty" value="1" required class="w-full border border-slate-200 rounded-xl p-3"></div>
+                    <div><label class="text-xs text-slate-400 font-bold uppercase mb-1 block">بەروار</label><input type="date" name="date" required class="w-full border border-slate-200 rounded-xl p-3"></div>
+                    <button type="submit" class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold hover:bg-purple-700 shadow-lg shadow-purple-200 mt-2">زیادکردن</button>
+                </form>
+            `);
+            document.getElementById('stock-form').onsubmit = async (e) => { 
+                e.preventDefault(); 
+                await addDoc(collection(db, 'prepared_items'), { staff: e.target.staff.value, qty: parseInt(e.target.qty.value), date: e.target.date.value }); 
+                closeModal(); 
+            };
+        };
+
+        window.openAddExpenseModal = () => {
+            openModal('زیادکردنی خەرجی', `<form id="exp-form" class="space-y-4">
+                <select name="cat" id="exp-cat" onchange="toggleNote('exp-cat', 'exp-note-div')" class="w-full border border-slate-200 rounded-xl p-3 bg-white"><option value="Sponsor">سپۆنسەر</option><option value="Transport">گواستنەوە</option><option value="Bags">عەلاگە/کارتۆن</option><option value="Rent">کرێ</option><option value="Other">هیتر (تێبینی بنووسە)</option></select>
+                <div id="exp-note-div" class="hidden"><input type="text" name="note" placeholder="تێبینی..." class="w-full border border-yellow-200 rounded-xl p-3 bg-yellow-50 focus:bg-white transition-colors"></div>
+                <input type="number" name="amount" placeholder="بڕی پارە" required class="w-full border border-slate-200 rounded-xl p-3">
+                <input type="date" name="date" required class="w-full border border-slate-200 rounded-xl p-3 text-slate-500">
+                <button type="submit" class="w-full bg-rose-600 text-white py-3.5 rounded-xl font-bold hover:bg-rose-700 shadow-lg shadow-rose-200">زیادکردن</button>
+            </form>`);
+            document.getElementById('exp-form').onsubmit = async (e) => { e.preventDefault(); await addDoc(collection(db, 'expenses'), { category: e.target.cat.value, amount: parseFloat(e.target.amount.value), note: e.target.note ? e.target.note.value : '', date: e.target.date.value }); closeModal(); };
+        };
+
+        window.openAddDebtModal = () => {
+            openModal('زیادکردنی قەرز', `<form id="debt-form" class="space-y-4"><input type="text" name="name" placeholder="ناوی خاوەن قەرز" required class="w-full border border-slate-200 rounded-xl p-3"><input type="number" name="amount" placeholder="بڕی پارە" required class="w-full border border-slate-200 rounded-xl p-3"><button type="submit" class="w-full bg-amber-500 text-white py-3.5 rounded-xl font-bold hover:bg-amber-600 shadow-lg shadow-amber-200">زیادکردن</button></form>`);
+            document.getElementById('debt-form').onsubmit = async (e) => { e.preventDefault(); await addDoc(collection(db, 'debts'), { name: e.target.name.value, amount: parseFloat(e.target.amount.value), isPaid: false, date: new Date().toISOString() }); closeModal(); };
+        };
+
+        window.openAddLossModal = () => {
+            openModal('تۆمارکردنی زیان', `<form id="loss-form" class="space-y-4"><input type="number" name="cost" placeholder="تێچوو/زیان" required class="w-full border border-slate-200 rounded-xl p-3"><input type="number" name="qty" placeholder="دانە" value="1" class="w-full border border-slate-200 rounded-xl p-3"><input type="text" name="reason" placeholder="هۆکار" class="w-full border border-slate-200 rounded-xl p-3"><button type="submit" class="w-full bg-rose-600 text-white py-3.5 rounded-xl font-bold hover:bg-rose-700 shadow-lg shadow-rose-200">تۆمارکردن</button></form>`);
+            document.getElementById('loss-form').onsubmit = async (e) => { e.preventDefault(); const c = parseFloat(e.target.cost.value), q = parseInt(e.target.qty.value) || 1; await addDoc(collection(db, 'losses'), { unitCost: c, qty: q, totalLoss: c*q, reason: e.target.reason.value, date: new Date().toISOString() }); closeModal(); };
+        };
+
+        window.openAddReturnModal = () => {
+            const options = window.state.orders.map(o => `<option value="${getShortId(o.id)}">${o.customer} - ${formatDate(o.date)}</option>`).join('');
+            const dataList = `<datalist id="order-options">${options}</datalist>`;
+            openModal('گەڕاندنەوەی کاڵا', `
+                <form id="ret-form" class="space-y-4">
+                    <div><label class="text-xs text-slate-400 font-bold uppercase mb-1 block">کڕیار هەڵبژێرە (ID یان ناو)</label><input list="order-options" name="orderSearch" id="orderSearch" class="w-full border border-slate-200 rounded-xl p-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="گەڕان بۆ کڕیار...">${dataList}<input type="hidden" name="oid" id="oid"></div>
+                    <div><label class="text-xs text-slate-400 font-bold uppercase mb-1 block">هۆکار</label><select name="reason" onchange="toggleNote(this.id, 'ret-n')" id="ret-r" class="w-full border border-slate-200 rounded-xl p-3 bg-white"><option value="Broken">شکاوە</option><option value="DidNotLike">بەدڵی نەبوو</option><option value="Other">هیتر</option></select></div>
+                    <div id="ret-n" class="hidden"><input name="note" placeholder="تێبینی" class="w-full border border-yellow-200 bg-yellow-50 rounded-xl p-3"></div>
+                    <div class="bg-rose-50 p-4 rounded-xl border border-rose-100"><label class="text-xs text-rose-500 font-bold mb-1 block">بڕی زەرەر (مەسرەف)</label><input name="lossAmount" type="number" placeholder="0" class="w-full border border-rose-200 rounded-lg p-3 text-red-600 font-bold bg-white"></div>
+                    <button type="submit" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold hover:bg-slate-900 shadow-lg">تۆمارکردن</button>
+                </form>
+            `);
+            const input = document.getElementById('orderSearch');
+            input.addEventListener('input', function() {
+                const val = this.value;
+                const order = window.state.orders.find(o => getShortId(o.id) === val);
+                if(order) { document.getElementById('oid').value = order.id; this.style.borderColor = '#10b981'; } else { document.getElementById('oid').value = ''; this.style.borderColor = ''; }
+            });
+            document.getElementById('ret-form').onsubmit = async (e) => { e.preventDefault(); const f = e.target; const orderId = f.oid.value; if(!orderId) { alert('تکایە کڕیار هەڵبژێرە بە دروستی'); return; } const la = parseFloat(f.lossAmount.value); const oName = window.state.orders.find(o=>o.id===orderId)?.customer || '?'; await addDoc(collection(db, 'returns'), { orderId: orderId, reason: f.reason.value, note: f.note?.value, lossAmount: la, date: new Date().toISOString() }); if(la>0) await addDoc(collection(db, 'losses'), { unitCost: la, qty: 1, totalLoss: la, reason: `گەڕاوە: ${oName}`, date: new Date().toISOString() }); closeModal(); };
+        };
+
+        window.updateOrderStatus = async (id, status) => { await updateDoc(doc(db, 'orders', id), { status }); };
+        window.markDebtPaid = async (id) => { if(confirm('دڵنیای قەرزەکە دراوەتەوە؟')) await updateDoc(doc(db, 'debts', id), { isPaid: true }); };
+        window.deleteItem = async (col, id) => { if(confirm('سڕینەوە؟')) await deleteDoc(doc(db, col, id)); };
+
+        // *** HARD RESET ***
+        window.hardResetAndImport = async () => {
+            if(!confirm("دڵنیای لە سڕینەوە و نوێکردنەوەی هەموو داتاکان؟")) return;
+            document.getElementById('loading-screen').style.display = 'flex';
+            document.getElementById('loading-text').innerText = 'خەریکی نوێکردنەوەی داتاکانین...';
+            document.getElementById('import-status').style.display = 'block';
+
+            const collections = ['orders', 'expenses', 'losses', 'debts', 'returns', 'prepared_items'];
+            for(const colName of collections) {
+                const snapshot = await getDocs(collection(db, colName));
+                if (snapshot.size === 0) continue;
+                const batch = writeBatch(db);
+                snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+            }
+
+            const initialOrders = [
+                {date: "2026-01-27", customer: "diya", phone: "", address: "kirkuk", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-06", customer: "meera", phone: "", address: "slemani", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "Hemn", phone: "7807631626", address: "hawler", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "Sahr akrey", phone: "7504118552", address: "akre", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "Awat", phone: "7725182673", address: "slemani-Darogha", qty: 2, price: 4500, status: "Delivered"},
+                {date: "2026-02-10", customer: "hakan", phone: "7519868629", address: "Soran", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "Ayub Namo", phone: "7510656266", address: "hawler - garaky hawkary", qty: 2, price: 4500, status: "Delivered"},
+                {date: "2026-02-10", customer: "paywast", phone: "7501502895", address: "Ranya", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "hamay choman", phone: "7778340570", address: "sulaimani", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "salh qasrary", phone: "7507441345", address: "balakayaty-choman", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "Rzgar Harne", phone: "7504334682", address: "blaw barzan", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "lade", phone: "7507837179", address: "hawler-azady", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "twana dolar", phone: "7701509494", address: "slemani-raparin-zanko", qty: 2, price: 4500, status: "Delivered"},
+                {date: "2026-02-10", customer: "Hevar soran", phone: "7517949404", address: "hawler", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "Mohamaed", phone: "7722976361", address: "sulaimani-bakrajoy-taza", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "Ismael Haji qadr", phone: "07518948372", address: "Sangasar - naw bazar", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "Sherwan Mohammed", phone: "٠٧٥٠١٥٦٣٣٦٧", address: "Qaladze", qty: 2, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "muhanad", phone: "07508279757", address: "hawler - nawroz", qty: 2, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "لالە حەمەی کامری", phone: "0772 679 83 43", address: "slemany - dasaraka", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "galay paiz", phone: "07700243238", address: "slemani - majid bag", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "ary 7aji xalil", phone: "07728611032", address: "kalar", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "Bokay jamal axa", phone: "07725254857", address: "slemani - asaish gshty", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "nirwan slemany", phone: "07709001753", address: "Slemany - darw city", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "halabjayy", phone: "07709244009", address: "slemane - famli mol", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "Bryar", phone: "7718910591", address: "Slemane- Kane ba", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "JCC", phone: "07722180009", address: "Slemany - kai city", qty: 2, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "Sarwar", phone: "07702469786", address: "Slemany - Bakrajo", qty: 2, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "2+2=1", phone: "07507305156", address: "Hawler - psht UK pizza", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "Ayman doski", phone: "07507426822", address: "hawler - eskan", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-10", customer: "dlo gyan", phone: "07815924274", address: "hawler - xabat", qty: 1, price: 4000, status: "Delivered"},
+                {date: "2026-02-11", customer: "Barham hassan", phone: "0770 193 1231", address: "Slemany - Xewata", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-12", customer: "Dara Shwany", phone: "07515779956", address: "hawler - daratw", qty: 2, price: 5000, status: "Delivered"},
+                {date: "2026-02-11", customer: "wasta zryan", phone: "07702937138", address: "slemany - tasluja", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2025-02-11", customer: "kurdsan", phone: "07702355551", address: "slemany - qularaisy", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-11", customer: "Aroo", phone: "07719903712", address: "slemani - miran city", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-11", customer: "Swra gyan", phone: "07701209816", address: "bzyan -bardam sharawany", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-11", customer: "Tayrawa", phone: "07824865283", address: "Hawler - tayrawa", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-12", customer: "Abdulla balaky", phone: "0750 653 53 56", address: "Hawler - 60m - barambar mat3am shkar", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-12", customer: "Regr halabjayy", phone: "07702228888", address: "سلێمانی سێتوان", qty: 3, price: 4000, status: "Delivered"},
+                {date: "2026-02-09", customer: "hama omer", phone: "07702424078", address: "slemany-hawary shar", qty: 1, price: 0, status: "Delivered"},
+                {date: "2026-02-12", customer: "Salh qasray", phone: "07507441345", address: "balakayaty", qty: 2, price: 4000, status: "Delivered"},
+                {date: "2026-02-12", customer: "hemn", phone: "7807631626", address: "hawler", qty: 1, price: 0, status: "Delivered"},
+                {date: "2026-02-13", customer: "Abdulla", phone: "07504256918", address: "hawler", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-13", customer: "surchy", phone: "0785 907 90 92", address: "hawler - daxly 18 shwbat", qty: 1, price: 5000, status: "Delivered"},
+                {date: "2026-02-13", customer: "ary", phone: "07725213379", address: "takya", qty: 1, price: 5000, status: "Delivered"}
+            ];
+
+            for(const order of initialOrders) { await addDoc(collection(db, 'orders'), order); }
+            await addDoc(collection(db, 'expenses'), { category: 'کۆی گشتی پێشوو', amount: 455000, date: '2026-01-01', note: 'بەپێی تۆمارە کۆنەکان' });
+
+            document.getElementById('loading-screen').style.display = 'none';
+            alert('✅ تەواو! داتاکان نوێ کرانەوە.');
+            window.location.reload();
+        };
+
+        window.toggleMobileMenu = () => document.getElementById('mobile-menu').classList.toggle('hidden');
+
+    </script>
+</body>
+</html>
+
+
